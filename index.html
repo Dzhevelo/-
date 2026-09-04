@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Волк: Сбор яиц 📱</title>
+    <style>
+        :root {
+            --bg-color: #8bc34a;
+            --wolf-color: #3e2723;
+            --egg-color: #fff;
+            --bomb-color: #d32f2f;
+            --text-color: #2e7d32;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+
+        body {
+            background-color: var(--bg-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden; /* Блокируем скролл страницы */
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--text-color);
+        }
+
+        /* Контейнер игры - занимает почти весь экран */
+        #game-container {
+            position: relative;
+            width: 95vw;
+            max-width: 400px;
+            height: 85vh;
+            max-height: 700px;
+            background: #c8e6c9;
+            border: 6px solid #2e7d32;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            overflow: hidden;
+            touch-action: none; /* Отключаем зум и скролл внутри игры */
+        }
+
+        /* Интерфейс сверху */
+        .ui-layer {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            font-size: 18px;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+        }
+
+        /* Волк */
+        #wolf {
+            position: absolute;
+            bottom: 30px; /* Чуть выше низа для удобства */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 70px;   /* Увеличили для пальца */
+            height: 80px;  /* Увеличили */
+            background-color: var(--wolf-color);
+            border-radius: 50% 50% 20% 20%;
+            z-index: 5;
+            animation: blink 3s infinite;
+            filter: drop-shadow(0 4px 2px rgba(0,0,0,0.2));
+        }
+        
+        /* Уши волка */
+        #wolf::before, #wolf::after {
+            content: "";
+            position: absolute;
+            top: -20px;
+            width: 25px;
+            height: 40px;
+            background-color: var(--wolf-color);
+            z-index: 6;
+        }
+        #wolf::before { left: -15px; border-radius: 50% 0 0 0; transform: rotate(-30deg); }
+        #wolf::after { right: -15px; border-radius: 0 50% 0 0; transform: rotate(30deg); }
+
+        @keyframes blink {
+            0%, 90%, 100% { opacity: 1; }
+            95% { opacity: 0.5; }
+        }
+
+        /* Яйцо */
+        .egg {
+            position: absolute;
+            bottom: 100%;
+            width: 50px;    /* Крупнее */
+            height: 60px;   /* Крупнее */
+            background-color: var(--egg-color);
+            border-radius: 50% / 60%;
+            box-shadow: inset -5px -5px 10px rgba(255,255,255,0.4), 4px 4px 0px rgba(0,0,0,0.1);
+            z-index: 2;
+        }
+
+        /* Бомба */
+        .bomb {
+            position: absolute;
+            bottom: 100%;
+            width: 50px;
+            height: 50px;
+            background-color: var(--bomb-color);
+            border-radius: 50%;
+            box-shadow: 0 4px 0 rgba(100,0,0,0.5), inset -2px -2px 5px rgba(0,0,0,0.3);
+            z-index: 2;
+            animation: fuse 1s infinite;
+        }
+
+        .bomb::after {
+            content: "";
+            position: absolute;
+            top: -10px; left: 50%; transform: translateX(-50%) rotate(-45deg);
+            width: 10px; height: 3px;
+            background: white;
+            box-shadow: 0 0 2px black;
+        }
+
+        @keyframes fuse {
+            0% { transform: scale(1) rotate(-45deg); opacity: 1; }
+            50% { transform: scale(0.95) rotate(-35deg); opacity: 0.8; }
+            100% { transform: scale(1) rotate(-45deg); opacity: 1; }
+        }
+
+        /* Экран конца игры */
+        #game-over-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1.title { color: #ffeb3b; font-size: 28px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; }
+        p.score-text { color: white; font-size: 42px; font-weight: bold; margin: 10px 0; text-shadow: 2px 2px 0px #000; }
+
+        button.restart-btn {
+            padding: 18px 40px;
+            font-size: 20px;
+            background: #ff9800;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.1s;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.4);
+        }
+        button.restart-btn:active { transform: scale(0.96); }
+
+        /* Панель управления для телефона */
+        .mobile-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 0; right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            z-index: 10;
+        }
+
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(5px);
+            border: 2px solid white;
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .control-btn:active, .control-btn.pressed {
+            background: rgba(255, 255, 255, 0.6);
+            transform: scale(0.95);
+        }
+
+        /* Зона свайпа (по желанию можно использовать вместо кнопок) */
+        #swipe-zone {
+            position: absolute;
+            top: 0; bottom: 100px; /* Оставляем место под кнопки */
+            left: 0; right: 0;
+            z-index: 0;
+            /* background: rgba(0,0,0,0.1); // Для отладки зоны */
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Интерфейс -->
+        <div class="ui-layer">
+            <span id="score">Счёт: 0</span>
+            <span id="lives">❤️ ❤️ ❤️</span>
+        </div>
+
+        <!-- Волк -->
+        <div id="wolf"></div>
+
+        <!-- Зона для свайпа (управление пальцем по экрану) -->
+        <div id="swipe-zone"></div>
+
+        <!-- Кнопки управления -->
+        <div class="mobile-controls">
+            <div class="control-btn" id="btn-left" onclick="moveWolf(-25)">←</div>
+            <div class="control-btn" id="btn-right" onclick="moveWolf(25)">→</div>
+        </div>
+
+        <!-- Экран проигрыша -->
+        <div id="game-over-screen">
+            <h1 class="title">Игра окончена!</h1>
+            <p class="score-text" id="final-score">0</p>
+            <button class="restart-btn" onclick="restartGame()">Играть снова</button>
+            <div style="color: rgba(255,255,255,0.7); margin-top: 20px; font-size: 14px;">
+                Проводи пальцем или жми кнопки!
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const wolf = document.getElementById('wolf');
+        const scoreEl = document.getElementById('score');
+        const livesEl = document.getElementById('lives');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const finalScoreEl = document.getElementById('final-score');
+        const swipeZone = document.getElementById('swipe-zone');
+
+        let score = 0;
+        let lives = 3;
+        let gameRunning = false;
+        let spawnInterval;
+        
+        // Скорость движения (пиксели за клик/свайп)
+        let moveStep = 80; 
+        let wolfPos = 50; // Позиция в процентах
+
+        // --- Управление кнопками ---
+        function moveWolf(delta) {
+            if (!gameRunning) return;
+            wolfPos += delta;
+            clampWolfPosition();
+            updateWolfVisual();
+        }
+
+        function clampWolfPosition() {
+            // Ограничиваем, чтобы волк не уходил за края (оставляем небольшой отступ)
+            if (wolfPos < 10) wolfPos = 10;
+            if (wolfPos > 85) wolfPos = 85;
+        }
+
+        function updateWolfVisual() {
+            wolf.style.left = wolfPos + '%';
+        }
+
+        // --- Управление свайпом (для телефона) ---
+        let startX = 0;
+
+        swipeZone.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+        });
+
+        swipeZone.addEventListener('touchmove', (e) => {
+            if (!gameRunning) return;
+            const currentX = e.touches[0].clientX;
+            const diff = currentX - startX;
+            
+            // Если сдвинули достаточно сильно (чтобы не реагировать на случайные касания)
+            if (Math.abs(diff) > 30) {
+                // Двигаем плавно в зависимости от силы свайпа
+                const moveAmount = diff > 0 ? 15 : -15; 
+                wolfPos += moveAmount;
+                clampWolfPosition();
+                updateWolfVisual();
+                startX = currentX; // Обновляем точку старта для плавности
+            }
+        });
+
+        // Также поддерживаем клики по зоне свайпа для простоты (одно касание = шаг)
+        swipeZone.addEventListener('click', (e) => {
+             // Можно оставить только свайп, но клик тоже полезен
+        });
+
+        // --- Логика игры ---
+        function spawnObjects() {
+            const container = document.getElementById('game-container');
+            
+            // 70% шанс на яйцо, 30% на бомбу
+            const isBomb = Math.random() > 0.7;
+            const typeClass = isBomb ? 'bomb' : 'egg';
+            
+            const obj = document.createElement('div');
+            obj.className = typeClass;
+            
+            // Случайная позиция X (от 15% до 85%)
+            const startX = Math.floor(Math.random() * 70) + 15;
+            obj.style.left = startX + '%';
+            
+            container.appendChild(obj);
+
+            // Скорость падения увеличивается со счетом
+            let fallSpeed = 6 + (score * 0.15); 
+            let currentY = -60; 
+
+            const fallLoop = setInterval(() => {
+                currentY += fallSpeed;
+                obj.style.bottom = currentY + 'px';
+
+                checkCollision(obj, startX, isBomb);
+
+                if (currentY > 700) { // Упал вниз
+                    clearInterval(fallLoop);
+                    obj.remove();
+                }
+            }, 16);
+        }
+
+        function checkCollision(obj, objX, isBomb) {
+            // Вычисляем центр волка и его ширину
+            // Ширина волка примерно 18% от экрана (подобрано экспериментально под размеры)
+            const wolfWidthPercent = 18; 
+            const wolfCenter = wolfPos + (wolfWidthPercent / 2);
+
+            // Проверяем, находится ли объект над волком
+            // Добавляем небольшой допуск (+/- 5%) для удобства
+            if (objX >= (wolfPos - 5) && objX <= (wolfPos + wolfWidthPercent + 5)) {
+                
+                if (isBomb) {
+                    lives--;
+                    updateLives();
+                } else {
+                    score++;
+                    updateScore();
+                }
+
+                obj.remove(); // Удаляем объект
+                
+                if (lives <= 0) {
+                    endGame();
+                }
+            }
+        }
+
+        function updateScore() {
+            scoreEl.textContent = 'Счёт: ' + score;
+        }
+
+        function updateLives() {
+            let hearts = '';
+            for (let i = 0; i < lives; i++) {
+                hearts += '❤️';
+            }
+            livesEl.textContent = hearts;
+        }
+
+        function startGame() {
+            score = 0;
+            lives = 3;
+            gameRunning = true;
+            updateScore();
+            updateLives();
+            gameOverScreen.style.display = 'none';
+            
+            clearInterval(spawnInterval);
+            // Частота спавна: чем больше счет, тем чаще падают предметы
+            spawnInterval = setInterval(spawnObjects, 1000 - (score * 10)); 
+        }
+
+        function endGame() {
+            gameRunning = false;
+            clearInterval(spawnInterval);
+            finalScoreEl.textContent = score;
+            gameOverScreen.style.display = 'flex';
+        }
+
+        function restartGame() {
+            startGame();
+        }
+
+        // Запуск
+        startGame();
+    </script>
+</body>
+</html>
